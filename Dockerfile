@@ -1,0 +1,102 @@
+# ---- Build KrakenUniq with an older GCC (Alpine 3.18 / g++ 12) ----
+FROM alpine:3.18 AS builder
+
+ARG KRAKENUNIQ_VERSION=1.0.4
+
+# Build dependencies (GCC 12.x lives in Alpine 3.18)
+RUN apk add --no-cache \
+  bash \
+  perl \
+  make \
+  g++ \
+  zlib-dev \
+  bzip2-dev \
+  wget \
+  ca-certificates \
+  tar \
+  coreutils
+
+WORKDIR /opt
+
+# Fetch a released tarball of KrakenUniq
+RUN wget -q "https://github.com/fbreitwieser/krakenuniq/archive/refs/tags/v${KRAKENUNIQ_VERSION}.tar.gz" \
+  && tar xzf "v${KRAKENUNIQ_VERSION}.tar.gz" \
+  && rm "v${KRAKENUNIQ_VERSION}.tar.gz" \
+  && mv "krakenuniq-${KRAKENUNIQ_VERSION}" krakenuniq
+
+WORKDIR /opt/krakenuniq
+
+# Install KrakenUniq into /opt/krakenuniq (same dir)
+RUN bash ./install_krakenuniq.sh /opt/krakenuniq
+
+# ---- Final runtime image on Alpine 3.20 ----
+FROM alpine:3.20
+
+# Runtime dependencies only – no compiler
+RUN apk add --no-cache \
+  bash \
+  perl \
+  curl \
+  zlib \
+  bzip2 \
+  libstdc++ \
+  libgcc \
+  libgomp \
+  ca-certificates \
+  coreutils \
+  findutils \
+  gzip \
+  bzip2 \
+  tar \
+  rsync \
+  libc6-compat \
+  gcompat
+
+# Copy the compiled KrakenUniq installation
+COPY --from=builder /opt/krakenuniq /opt/krakenuniq
+ENV PATH="/opt/krakenuniq/:$PATH"
+
+# Install Bowtie2 precompiled binary
+ENV BOWTIE2_VERSION=2.5.4
+RUN wget -O /tmp/bowtie2.zip \
+  https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VERSION}/bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip/download && \
+  unzip /tmp/bowtie2.zip -d /opt && \
+  rm /tmp/bowtie2.zip && \
+  ln -s /opt/bowtie2-${BOWTIE2_VERSION}-linux-x86_64/bowtie2* /usr/local/bin/
+
+# Install samtools
+ENV SAMTOOLS_VERSION=1.22.1
+
+ENV HTSLIB_VERSION=1.22.1
+
+RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
+  wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 http://jaist.dl.sourceforge.net/project/samtools/samtools/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+  && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+  && cd samtools-${SAMTOOLS_VERSION}/ \
+  && ./configure --prefix=/usr/local \
+  && make \
+  && make install
+
+RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
+  && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
+  && cd htslib-${HTSLIB_VERSION} \
+  && ./configure --prefix=/usr/local \
+  && make \
+  && make install 
+
+# # Install Rust (We will remove this once we compile release versions of our tools
+# RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# ENV PATH="/root/.cargo/bin:${PATH}"
+
+# # Install micrite
+# RUN apk add --no-cache build-base pkgconf bzip2-dev zlib-dev xz-dev openssl-dev curl-dev libressl-dev \  
+#   && cargo install --git https://github.com/selkamand/micrite
+
+# Copy Scripts
+COPY --chmod=0755 scripts/* /app/
+
+# Add scripts path
+ENV PATH="$PATH:/app"
+
+WORKDIR /app
