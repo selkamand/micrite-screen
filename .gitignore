@@ -1,0 +1,22 @@
+# =====================
+# Nextflow
+# =====================
+
+.nextflow/
+.nextflow.log
+.nextflow.history
+work/
+trace.txt
+timeline.html
+report.html
+dag.html
+
+# Optional: pipeline results (adjust if you want to keep them)
+results/
+output/
+
+# =====================
+# macOS
+# =====================
+
+.DS_Store
