@@ -70,12 +70,13 @@ ENV SAMTOOLS_VERSION=1.22.1
 ENV HTSLIB_VERSION=1.22.1
 
 RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
-  wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 http://jaist.dl.sourceforge.net/project/samtools/samtools/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+  wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
   && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
   && cd samtools-${SAMTOOLS_VERSION}/ \
   && ./configure --prefix=/usr/local \
   && make \
   && make install
+
 
 RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
   && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
@@ -83,6 +84,7 @@ RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/
   && ./configure --prefix=/usr/local \
   && make \
   && make install 
+
 
 # # Install Rust (We will remove this once we compile release versions of our tools
 # RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
