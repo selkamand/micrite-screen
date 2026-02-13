@@ -1,17 +1,23 @@
 nextflow.enable.dsl = 2
 
-// Required inputs
-params.ref = null
-// bowtie2 index prefix
-params.kraken_db = null
-// krakenuniq database directory
-params.bam = null
-// input bam
-params.decoys = null
-// decoy contigs list (required by your script)
+// [[ Required inputs ]]
 
-// Minimal knobs (can be hardcoded if you want even fewer)
+// bowtie2 index prefix
+params.ref = null
+
+// krakenuniq database directory
+params.kraken_db = null
+
+// input bam
+params.bam = null
+
+// path to txt file with decoy contig names
+params.decoys = null
+
+
+// Optional
 params.threads = 8
+params.threads_kraken = 2
 params.preload_size = '0'
 params.outdir = 'results'
 
@@ -99,7 +105,7 @@ process KRAKENUNIQ {
   krakenuniq \
     --paired \
     --preload-size ${params.preload_size} \
-    --threads ${params.threads} \
+    --threads ${params.threads_kraken} \
     --db ${params.kraken_db} \
     --report ${prefix}.krakenuniq.report.txt \
     --output off \
