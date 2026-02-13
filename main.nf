@@ -18,7 +18,7 @@ params.decoys = null
 // Optional
 params.threads = 8
 params.threads_kraken = 2
-params.preload_size = '0'
+params.preload_size = '16G'
 params.outdir = 'results'
 
 // Configure bowtie2 preset, default to sensitive 
