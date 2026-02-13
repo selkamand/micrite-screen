@@ -66,14 +66,35 @@ keep_temp=0
 # -------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --bam) bam="${2:-}"; shift 2;;
-    --decoys) decoys="${2:-}"; shift 2;;
-    --prefix) prefix="${2:-}"; shift 2;;
-    -t|--threads) threads="${2:-}"; shift 2;;
-    -o|--outdir) outdir="${2:-}"; shift 2;;
-    --keep-temp) keep_temp=1; shift;;
-    -h|--help) usage; exit 0;;
-    *) die "Unknown argument: $1 (use --help)";;
+  --bam)
+    bam="${2:-}"
+    shift 2
+    ;;
+  --decoys)
+    decoys="${2:-}"
+    shift 2
+    ;;
+  --prefix)
+    prefix="${2:-}"
+    shift 2
+    ;;
+  -t | --threads)
+    threads="${2:-}"
+    shift 2
+    ;;
+  -o | --outdir)
+    outdir="${2:-}"
+    shift 2
+    ;;
+  --keep-temp)
+    keep_temp=1
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *) die "Unknown argument: $1 (use --help)" ;;
   esac
 done
 
@@ -81,13 +102,13 @@ done
 # Validate inputs
 # -------------------------
 command -v samtools >/dev/null 2>&1 || die "samtools not found in PATH"
-command -v bgzip   >/dev/null 2>&1 || die "bgzip not found in PATH"
+command -v bgzip >/dev/null 2>&1 || die "bgzip not found in PATH"
 
-[[ -n "$bam" ]]    || die "--bam is required"
+[[ -n "$bam" ]] || die "--bam is required"
 [[ -n "$decoys" ]] || die "--decoys is required"
 [[ -n "$prefix" ]] || die "--prefix is required"
 
-[[ -f "$bam" ]]    || die "BAM not found: $bam"
+[[ -f "$bam" ]] || die "BAM not found: $bam"
 [[ -f "$decoys" ]] || die "Decoy contig file not found: $decoys"
 
 mkdir -p "$outdir"
@@ -105,7 +126,8 @@ done < <(grep -vE '^\s*($|#)' "$decoys" || true)
 
 # Warn if BAM index missing
 if [[ ! -f "${bam}.bai" && ! -f "${bam%.*}.bai" ]]; then
-  echo "WARNING: BAM index (.bai) not found. Decoy selection may fail or be slow." >&2
+  echo "WARNING: BAM index (.bai) not found. Please ensure bam is indexed and try again" >&2
+  exit 1
 fi
 
 # Output files
@@ -127,17 +149,16 @@ echo "[1/3] Writing unmapped fragments (read unmapped OR mate unmapped)" >&2
 # Note we don't need keep-pairs because the --include-flags includes read unmapped or mate unmapped
 
 samtools view \
-    -u \
-    --exclude-flags 3840 \
-    --include-flags 12 \
-    "$bam" | \
-    samtools collate -O - | \
-    samtools fastq \
+  -u \
+  --exclude-flags 3840 \
+  --include-flags 12 \
+  "$bam" |
+  samtools collate -O - |
+  samtools fastq \
     -1 "${out_r1_unmapped}" \
     -2 "${out_r2_unmapped}" \
     -s "${out_s_unmapped}" \
-    -@ "${threads}" 
-    
+    -@ "${threads}"
 
 # -------------------------
 # Decoy-associated fragments
@@ -148,8 +169,8 @@ samtools view \
   --fetch-pairs \
   --exclude-flags 3852 \
   "$bam" \
-  "${decoy_contigs[@]}" | \
-  samtools collate -O - | \
+  "${decoy_contigs[@]}" |
+  samtools collate -O - |
   samtools fastq \
     -1 "${out_r1_decoy}" \
     -2 "${out_r2_decoy}" \
@@ -160,14 +181,14 @@ samtools view \
 # Combine FASTQs
 # -------------------------
 echo "[3/3] Combining FASTQs into a single bgzipped record..." >&2
-cat "${out_r1_unmapped}" "${out_r1_decoy}" | bgzip -c > "${out_r1_final}"
-cat "${out_r2_unmapped}" "${out_r2_decoy}" | bgzip -c > "${out_r2_final}"
-cat "${out_s_unmapped}"  "${out_s_decoy}"  | bgzip -c > "${out_s_final}"
+cat "${out_r1_unmapped}" "${out_r1_decoy}" | bgzip -c >"${out_r1_final}"
+cat "${out_r2_unmapped}" "${out_r2_decoy}" | bgzip -c >"${out_r2_final}"
+cat "${out_s_unmapped}" "${out_s_decoy}" | bgzip -c >"${out_s_final}"
 
 # Cleanup
 if [[ "${keep_temp}" -eq 0 ]]; then
   rm -f "${out_r1_unmapped}" "${out_r2_unmapped}" "${out_s_unmapped}" \
-        "${out_r1_decoy}"    "${out_r2_decoy}"    "${out_s_decoy}"
+    "${out_r1_decoy}" "${out_r2_decoy}" "${out_s_decoy}"
 else
   echo "Keeping intermediate FASTQs (--keep-temp set)." >&2
 fi
