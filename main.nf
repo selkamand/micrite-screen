@@ -1,5 +1,8 @@
 nextflow.enable.dsl = 2
 
+// Help flag (so `--help` works)
+params.help = false
+
 // [[ Required inputs ]]
 
 // bowtie2 index prefix
@@ -21,9 +24,10 @@ params.threads_kraken = 2
 params.preload_size = '16G'
 params.outdir = 'results'
 
-// Configure bowtie2 preset, default to sensitive 
+// Configure bowtie2 preset, default to sensitive
 // Allowed: very-fast, fast, sensitive, very-sensitive
 params.bowtie2_preset = 'sensitive'
+
 
 process FETCH_UNMAPPED_PRE {
     tag "${prefix}"
@@ -115,6 +119,50 @@ process KRAKENUNIQ {
 
 workflow {
 
+    // Print help/usage and exit
+    if (params.help) {
+        log.info """
+USAGE:
+  nextflow run main.nf \\
+    --ref <bowtie2_index_prefix> \\
+    --kraken_db <krakenuniq_db_dir> \\
+    --bam <input.bam> \\
+    --decoys <contigs.txt> \\
+    [options]
+
+REQUIRED:
+  --ref            Bowtie2 index prefix (e.g. /path/to/index/prefix)
+  --kraken_db      Krakenuniq database directory
+  --bam            Input BAM file
+  --decoys         Path to txt file with decoy contig names (one per line)
+
+OPTIONAL (defaults shown):
+  --outdir         Output directory (default: ${params.outdir})
+  --threads        Threads for fetch_unmapped_reads + bowtie2 (default: ${params.threads})
+  --threads_kraken  Threads for krakenuniq (default: ${params.threads_kraken})
+  --preload_size   Krakenuniq preload size (default: ${params.preload_size})
+  --bowtie2_preset Bowtie2 preset: very-fast|fast|sensitive|very-sensitive (default: ${params.bowtie2_preset})
+
+HOW TO SET PARAMS:
+  Use space or '=' forms:
+    --threads 16
+    --threads=16
+
+EXAMPLE:
+  nextflow run main.nf -resume \\
+    --ref /refs/hg38/bowtie2/hg38 \\
+    --kraken_db /db/krakenuniq \\
+    --bam sample.bam \\
+    --decoys decoys.txt \\
+    --outdir results \\
+    --threads 16 \\
+    --threads_kraken 8 \\
+    --preload_size 32G \\
+    --bowtie2_preset very-sensitive
+"""
+        System.exit(0)
+    }
+
     // Fail fast: only required params
     if (!params.ref || !params.kraken_db || !params.bam || !params.decoys) {
         error(
@@ -124,17 +172,21 @@ Missing required params:
   --kraken_db <krakenuniq db dir>
   --bam <input.bam>
   --decoys <contigs.txt>
+
+Tip: run with --help for full usage.
 """
         )
     }
 
-    // NEW: Validate preset early (so failures are obvious)
+    // Validate preset early (so failures are obvious)
     def allowed_presets = ['very-fast', 'fast', 'sensitive', 'very-sensitive'] as Set
     if (!allowed_presets.contains(params.bowtie2_preset as String)) {
         error(
             """
 Invalid --bowtie2_preset '${params.bowtie2_preset}'.
 Valid values: very-fast, fast, sensitive, very-sensitive
+
+Tip: run with --help for full usage.
 """
         )
     }
