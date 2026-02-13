@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ----------------------------
+# Align paired-end reads with bowtie2 and produce coordinate-sorted/indexed BAM
+# (pipe bowtie2 SAM directly into samtools sort; no intermediate BAM)
+# ----------------------------
+
 usage() {
   cat <<'EOF'
 Usage:
-  align_bowtie2.sh -x <bt2_index_prefix> -1 <R1.fastq.gz> -2 <R2.fastq.gz> -o <out_prefix> [-t <threads>] [--rg <readgroup>] [--preset <name>]
+  align_bowtie2.sh -x <bt2_index_prefix> -1 <R1.fastq.gz> -2 <R2.fastq.gz> -o <out_prefix> [-t <threads>] [--rg <readgroup>]
 
 Required:
   -x  Bowtie2 index prefix (e.g., /path/genome or genome if genome.1.bt2 etc exist)
@@ -17,11 +22,9 @@ Required:
         <out_prefix>.flagstat.txt
 
 Optional:
-  -t        Threads (default: 4)
-  --rg      Read group string for bowtie2, e.g.:
-              "ID:lane1\tSM:sample1\tPL:ILLUMINA"
-  --preset  Bowtie2 preset (passed through directly):
-              very-fast, fast, sensitive (default), very-sensitive
+  -t  Threads (default: 4)
+  --rg Read group string for bowtie2, e.g.:
+        "ID:lane1\tSM:sample1\tPL:ILLUMINA"
 
 Notes:
   - No MAPQ filtering is applied
@@ -31,7 +34,6 @@ EOF
 # Defaults
 threads=4
 rg=""
-preset="sensitive"
 
 # Parse args
 genome=""
@@ -47,7 +49,6 @@ while [[ $# -gt 0 ]]; do
     -o) out_prefix="$2"; shift 2 ;;
     -t) threads="$2"; shift 2 ;;
     --rg) rg="$2"; shift 2 ;;
-    --preset) preset="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
   esac
@@ -85,27 +86,12 @@ tmpdir="$(mktemp -d)"
 cleanup() { rm -rf "${tmpdir}"; }
 trap cleanup EXIT
 
-# Map our preset name to Bowtie2's preset flag
-preset_flag=()
-case "${preset}" in
-  very-fast)      preset_flag=(--very-fast) ;;
-  fast)           preset_flag=(--fast) ;;
-  sensitive)      preset_flag=(--sensitive) ;;
-  very-sensitive) preset_flag=(--very-sensitive) ;;
-  *)
-    echo "ERROR: Unknown --preset '${preset}'" >&2
-    echo "Valid: very-fast, fast, sensitive, very-sensitive" >&2
-    exit 2
-    ;;
-esac
-
 echo "[$(date)] Starting alignment"
-echo "  Index:    ${genome}"
-echo "  R1:       ${R1}"
-echo "  R2:       ${R2}"
-echo "  Threads:  ${threads}"
-echo "  Out:      ${sorted_bam}"
-echo "  Preset:   ${preset} (${preset_flag[*]})"
+echo "  Index:   ${genome}"
+echo "  R1:      ${R1}"
+echo "  R2:      ${R2}"
+echo "  Threads: ${threads}"
+echo "  Out:     ${sorted_bam}"
 
 # Optional read group
 rg_args=()
@@ -118,7 +104,6 @@ bowtie2 -x "${genome}" \
   -1 "${R1}" \
   -2 "${R2}" \
   --threads "${threads}" \
-  "${preset_flag[@]}" \
   "${rg_args[@]}" \
   2> "${log}" \
 | samtools sort \

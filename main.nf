@@ -15,6 +15,10 @@ params.threads = 8
 params.preload_size = '0'
 params.outdir = 'results'
 
+// Configure bowtie2 preset, default to sensitive 
+// Allowed: very-fast, fast, sensitive, very-sensitive
+params.bowtie2_preset = 'sensitive'
+
 process FETCH_UNMAPPED_PRE {
     tag "${prefix}"
     publishDir "${params.outdir}", mode: 'copy'
@@ -75,6 +79,7 @@ process ALIGN_BOWTIE2 {
     -2 ${r2} \
     -o ${prefix} \
     -t ${params.threads} \
+    --preset ${params.bowtie2_preset} \
     -q 0
   """
 }
@@ -113,6 +118,17 @@ Missing required params:
   --kraken_db <krakenuniq db dir>
   --bam <input.bam>
   --decoys <contigs.txt>
+"""
+        )
+    }
+
+    // NEW: Validate preset early (so failures are obvious)
+    def allowed_presets = ['very-fast', 'fast', 'sensitive', 'very-sensitive'] as Set
+    if (!allowed_presets.contains(params.bowtie2_preset as String)) {
+        error(
+            """
+Invalid --bowtie2_preset '${params.bowtie2_preset}'.
+Valid values: very-fast, fast, sensitive, very-sensitive
 """
         )
     }
