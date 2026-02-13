@@ -60,6 +60,29 @@ nextflow run main.nf \
 ```
 
 
+## Output Files
+
+All files are written to `--outdir`.
+
+**Pre-alignment unmapped reads**
+- `<sample>.pre_R1.fastq.gz`
+- `<sample>.pre_R2.fastq.gz`
+  Unmapped read pairs extracted from the original BAM.
+
+**CHM13 re-alignment**
+- `<sample>.sorted.bam`
+- `<sample>.sorted.bam.bai`
+  Coordinate-sorted BAM and index after re-alignment to CHM13.
+
+**Post-alignment unmapped reads**
+- `<sample>.post_R1.fastq.gz`
+- `<sample>.post_R2.fastq.gz`
+  Read pairs still unmapped after CHM13 alignment (input to KrakenUniq).
+
+**Taxonomic classification**
+- `<sample>.krakenuniq.report.txt`
+  KrakenUniq taxonomic classification report for final unmapped reads.
+
 # Building the dockerfile
 
 From inside this directory.
