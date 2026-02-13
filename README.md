@@ -46,15 +46,17 @@ mv database.kdb kuniq_microbialdb_minus_kdb.20230808
 ### Step 2: Run nextflow pipeline
 
 ```
+
 nextflow run main.nf \
   --bam sample.bam \
   --decoys contigs.txt \
-  --ref /path/to/bowtie2/index/prefix/genome \
+  --ref /path/to/bowtie2/index/prefix/chm13v2.0 \
   --kraken_db /path/to/krakenuniq_db \
-  --threads_fetch 4 \
-  --threads_align 8 \
-  --kraken_threads 8 \
-  --kraken_preload_size 4G
+  --threads 8 \
+  --threads_kraken 4 \
+  --bowtie2_preset sensitive \
+  --preload_size 4G \
+  --outdir results
 ```
 
 
