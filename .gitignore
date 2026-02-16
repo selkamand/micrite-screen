@@ -3,7 +3,7 @@
 # =====================
 
 .nextflow/
-.nextflow.log
+.nextflow.log*
 .nextflow.history
 work/
 trace.txt
