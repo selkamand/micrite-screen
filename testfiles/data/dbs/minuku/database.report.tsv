@@ -1,0 +1,4 @@
+# KrakenUniq v1.0.4 DATE:2026-02-16T04:39:00Z DB:./. DB_SIZE:2992 WD:/Users/selkamand/packages/goldmicrobe/testfiles/data/dbs/minuku
+# CL:/Users/selkamand/tools/krakenuniq/krakenuniq --preload --db . --report-file database.report.tsv --threads 1 library-files.fa
+%	reads	taxReads	kmers	dup	cov	taxID	rank	taxName
+100	3	3	160	1	0.5	0	no rank	unclassified

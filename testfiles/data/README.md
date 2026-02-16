@@ -71,6 +71,9 @@ samtools index aligned.pairsplit.bam
 
 We supply a krakenuniq database (`minuku`) that includes all 3 sequences in ref.
 
+We use a short minimizer-len to ensure datbase stays tiny
+
 ```
-krakenuniq-build --db miniku 
+krakenuniq-build --db miniku --build --minimizer-len 10
 ```
+

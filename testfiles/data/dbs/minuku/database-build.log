@@ -1,0 +1,2 @@
+2026-02-16 15:39:00	eval /Users/selkamand/tools/krakenuniq/jellyfish-install/bin/jellyfish count -m 31 -s 160 -C -t 1 -o database /dev/fd/63
+2026-02-16 15:39:00	eval db_sort -z -M -t 1 -n 10 -d database.jdb -o database0.kdb.tmp -i database.idx
