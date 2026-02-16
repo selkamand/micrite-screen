@@ -121,7 +121,8 @@ workflow {
 
     // Print help/usage and exit
     if (params.help) {
-        log.info """
+        log.info(
+            """
 USAGE:
   nextflow run main.nf \\
     --ref <bowtie2_index_prefix> \\
@@ -160,6 +161,7 @@ EXAMPLE:
     --preload_size 32G \\
     --bowtie2_preset very-sensitive
 """
+        )
         System.exit(0)
     }
 
@@ -191,9 +193,32 @@ Tip: run with --help for full usage.
         )
     }
 
+    // Setup Paramaters
     def bam = file(params.bam)
     def decoys = file(params.decoys)
     def sample = bam.baseName
+
+    // Check if required files exist
+    if (!bam.exists()) {
+        error("BAM file not found: ${bam}")
+    }
+
+    // define index path:
+    def bai = file("${bam}.bai")
+
+    // sample.bam -> sample.bam.bai
+    if (!bai.exists()) {
+        error("BAM index not found: ${bai}")
+    }
+
+    if (!decoys.exists()) {
+        error("Decoys file not found: ${decoys}")
+    }
+
+    // Ensure krakenuniq database exists:
+    if (!file(params.kraken_db).exists()) {
+        error("Krakenuniq DB dir not found: ${params.kraken_db}")
+    }
 
     // 1) unmapped from original BAM
     unmapped1 = FETCH_UNMAPPED_PRE(channel.of(tuple(bam, decoys, "${sample}.pre")))
