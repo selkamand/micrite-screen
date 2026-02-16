@@ -77,7 +77,7 @@ process ALIGN_BOWTIE2 {
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    tuple val(prefix), path(r1), path(r2)
+    tuple path(ref), val(prefix), path(r1), path(r2), path(bowtie2_indices)
 
     output:
     tuple val(prefix), path("${prefix}.sorted.bam"), path("${prefix}.sorted.bam.bai")
@@ -85,7 +85,7 @@ process ALIGN_BOWTIE2 {
     script:
     """
   align_bowtie2.sh \
-    -x ${params.ref} \
+    -x ${ref} \
     -1 ${r1} \
     -2 ${r2} \
     -o ${prefix} \
@@ -220,8 +220,8 @@ Tip: run with --help for full usage.
     }
 
 
-    ref = file(params.ref)
-    bowtie_index = [
+    def ref = file(params.ref)
+    def bowtie_index = [
         file("${ref}.1.bt2"),
         file("${ref}.2.bt2"),
         file("${ref}.3.bt2"),
@@ -230,6 +230,12 @@ Tip: run with --help for full usage.
         file("${ref}.rev.2.bt2"),
     ]
 
+    // fail fast if any missing
+    def missing = bowtie_index.findAll { val -> !val.exists() }
+
+    if (missing) {
+        error("Missing bowtie2 index files:\n  " + missing.join('\n  '))
+    }
 
     if (!ref.exists()) {
         error("Reference genome not found ${ref}")
@@ -245,7 +251,8 @@ Tip: run with --help for full usage.
     unmapped1 = FETCH_UNMAPPED_PRE(channel.of(tuple(bam, bai, decoys, "${sample}.pre")))
 
     // 2) align to reference
-    aligned = ALIGN_BOWTIE2(unmapped1)
+    aligned = unmapped1.map { prefix, r1, r2 -> tuple(ref, prefix, r1, r2, bowtie_index) }
+        | ALIGN_BOWTIE2
 
     // 3) unmapped from new BAM
     unmapped2 = aligned.map { prefix, bam2, bai2 -> tuple(bam2, decoys, "${sample}.post") }
