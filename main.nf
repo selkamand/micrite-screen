@@ -41,7 +41,8 @@ process FETCH_UNMAPPED_PRE {
 
     script:
     """
-  fetch_unmapped_reads.sh \
+    ls;
+     fetch_unmapped_reads.sh \
     --bam ${bam} \
     --decoys ${decoys} \
     --prefix ${prefix} \
@@ -62,7 +63,7 @@ process FETCH_UNMAPPED_POST {
 
     script:
     """
-  fetch_unmapped_reads.sh \
+    fetch_unmapped_reads.sh \
     --bam ${bam} \
     --decoys ${decoys} \
     --prefix ${prefix} \
@@ -89,8 +90,8 @@ process ALIGN_BOWTIE2 {
     -2 ${r2} \
     -o ${prefix} \
     -t ${params.threads} \
-    --preset ${params.bowtie2_preset} \
-    -q 0
+    --preset ${params.bowtie2_preset}
+
   """
 }
 
@@ -217,6 +218,23 @@ Tip: run with --help for full usage.
     if (!decoys.exists()) {
         error("Decoys file not found: ${decoys}")
     }
+
+
+    ref = file(params.ref)
+    bowtie_index = [
+        file("${ref}.1.bt2"),
+        file("${ref}.2.bt2"),
+        file("${ref}.3.bt2"),
+        file("${ref}.4.bt2"),
+        file("${ref}.rev.1.bt2"),
+        file("${ref}.rev.2.bt2"),
+    ]
+
+
+    if (!ref.exists()) {
+        error("Reference genome not found ${ref}")
+    }
+
 
     // Ensure krakenuniq database exists:
     if (!file(params.kraken_db).exists()) {
