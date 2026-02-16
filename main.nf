@@ -132,7 +132,7 @@ USAGE:
     [options]
 
 REQUIRED:
-  --ref            Bowtie2 index prefix (e.g. /path/to/index/prefix)
+  --ref            Bowtie2 index prefix for T2T reference genome to use in host depletion step (e.g. /path/to/index/prefix)
   --kraken_db      Krakenuniq database directory
   --bam            Input BAM file
   --decoys         Path to txt file with decoy contig names (one per line)
@@ -170,7 +170,7 @@ EXAMPLE:
         error(
             """
 Missing required params:
-  --ref <bowtie2 index prefix>
+  --ref <bowtie2 index prefix for T2T reference genome>
   --kraken_db <krakenuniq db dir>
   --bam <input.bam>
   --decoys <contigs.txt>
