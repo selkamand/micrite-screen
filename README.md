@@ -98,3 +98,18 @@ Build final version to push to dockerhub
 ```{bash}
 docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci/goldmicrobe:0.0.1 .
 ```
+
+# Testing 
+
+This repo includes some small files for testing. If you git clone the repo you should be able to run the following.
+
+You may need to change `--profile` from singularity to docker if running on MacOS
+
+```
+nextflow run . --profile singularity \
+  --ref testfiles/data/ref/ref.fa \
+  --kraken_db testfiles/data/dbs/minuku/ \
+  --bam testfiles/data/aligned.no_decoy.bam \ 
+  --decoys testfiles/data/decoys.txt \
+  --outdir outdir 
+```
