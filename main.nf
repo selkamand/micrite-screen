@@ -34,10 +34,10 @@ process FETCH_UNMAPPED_PRE {
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    tuple path(bam), path(decoys), val(prefix)
+    tuple path(bam), path(bai), path(decoys), val(prefix)
 
     output:
-    tuple val(prefix), path("${prefix}_R1.fastq.gz"), path("${prefix}_R2.fastq.gz")
+    tuple val(prefix), path("${prefix}.R1.fq.gz"), path("${prefix}.R2.fq.gz")
 
     script:
     """
@@ -58,7 +58,7 @@ process FETCH_UNMAPPED_POST {
     tuple path(bam), path(decoys), val(prefix)
 
     output:
-    tuple val(prefix), path("${prefix}_R1.fastq.gz"), path("${prefix}_R2.fastq.gz")
+    tuple val(prefix), path("${prefix}.R1.fq.gz"), path("${prefix}.R2.fq.gz")
 
     script:
     """
@@ -210,6 +210,9 @@ Tip: run with --help for full usage.
     if (!bai.exists()) {
         error("BAM index not found: ${bai}")
     }
+    else {
+        log.info("Bam index found: ${bai}")
+    }
 
     if (!decoys.exists()) {
         error("Decoys file not found: ${decoys}")
@@ -221,7 +224,7 @@ Tip: run with --help for full usage.
     }
 
     // 1) unmapped from original BAM
-    unmapped1 = FETCH_UNMAPPED_PRE(channel.of(tuple(bam, decoys, "${sample}.pre")))
+    unmapped1 = FETCH_UNMAPPED_PRE(channel.of(tuple(bam, bai, decoys, "${sample}.pre")))
 
     // 2) align to reference
     aligned = ALIGN_BOWTIE2(unmapped1)
