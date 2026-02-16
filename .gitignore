@@ -14,6 +14,7 @@ dag.html
 # Optional: pipeline results (adjust if you want to keep them)
 results/
 output/
+outdir/
 
 # =====================
 # macOS
