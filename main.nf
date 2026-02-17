@@ -1,32 +1,34 @@
-nextflow.enable.dsl = 2
+params {
 
-// Help flag (so `--help` works)
-params.help = false
+    // Help flag (so `--help` works)
+    help: Boolean = false
 
-// [[ Required inputs ]]
+    // [[ Required inputs ]]
+    // bowtie2 index prefix
+    ref: Path
 
-// bowtie2 index prefix
-params.ref = null
+    // krakenuniq database directory
+    kraken_db: Path
 
-// krakenuniq database directory
-params.kraken_db = null
+    // input bam
+    bam: Path
 
-// input bam
-params.bam = null
-
-// path to txt file with decoy contig names
-params.decoys = null
+    // path to txt file with decoy contig names
+    decoys: Path
 
 
-// Optional
-params.threads = 8
-params.threads_kraken = 2
-params.preload_size = '16G'
-params.outdir = 'results'
+    // Optional
+    threads: Integer = 8
+    threads_kraken: Integer = 2
+    preload_size: String = "16G"
 
-// Configure bowtie2 preset, default to sensitive
-// Allowed: very-fast, fast, sensitive, very-sensitive
-params.bowtie2_preset = 'sensitive'
+    outdir: Path = "results"
+
+    // Configure bowtie2 preset, default to sensitive
+    // Allowed: very-fast, fast, sensitive, very-sensitive
+    bowtie2_preset: String = "sensitive"
+}
+
 
 
 process FETCH_UNMAPPED_PRE {
@@ -120,6 +122,7 @@ process KRAKENUNIQ {
 
 workflow {
 
+    main:
     // Print help/usage and exit
     if (params.help) {
         log.info(
@@ -260,4 +263,15 @@ Tip: run with --help for full usage.
 
     // 4) krakenuniq on final unmapped reads
     KRAKENUNIQ(unmapped2)
+
+    publish:
+    host_depleted_reads = FETCH_UNMAPPED_POST.out
+}
+
+// Outputs to save in final directory
+output {
+    host_depleted_reads {
+        path "${params.outdir}"
+        mode 'copy'
+    }
 }
