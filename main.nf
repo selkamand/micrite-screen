@@ -33,7 +33,6 @@ params {
 
 process FETCH_UNMAPPED_PRE {
     tag "${prefix}"
-    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     tuple path(bam), path(bai), path(decoys), val(prefix)
@@ -55,10 +54,9 @@ process FETCH_UNMAPPED_PRE {
 
 process FETCH_UNMAPPED_POST {
     tag "${prefix}"
-    publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    tuple path(bam), path(decoys), val(prefix)
+    tuple path(bam), path(bai), path(decoys), val(prefix)
 
     output:
     tuple val(prefix), path("${prefix}.R1.fq.gz"), path("${prefix}.R2.fq.gz")
@@ -76,7 +74,6 @@ process FETCH_UNMAPPED_POST {
 
 process ALIGN_BOWTIE2 {
     tag "${prefix}"
-    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     tuple path(ref), val(prefix), path(r1), path(r2), path(bowtie2_indices)
@@ -93,16 +90,14 @@ process ALIGN_BOWTIE2 {
     -o ${prefix} \
     -t ${params.threads} \
     --preset ${params.bowtie2_preset}
-
   """
 }
 
 process KRAKENUNIQ {
     tag "${prefix}"
-    publishDir "${params.outdir}", mode: 'copy'
 
     input:
-    tuple val(prefix), path(r1), path(r2)
+    tuple val(prefix), path(krakendb), path(r1), path(r2)
 
     output:
     path "${prefix}.krakenuniq.report.txt"
@@ -113,11 +108,21 @@ process KRAKENUNIQ {
     --paired \
     --preload-size ${params.preload_size} \
     --threads ${params.threads_kraken} \
-    --db ${params.kraken_db} \
+    --db ${krakendb} \
     --report ${prefix}.krakenuniq.report.txt \
     --output off \
     ${r1} ${r2}
   """
+}
+
+process CHECKFILES {
+    input:
+    path p
+
+    script:
+    """
+    echo "Failed to find file ${p}"
+    """
 }
 
 workflow {
@@ -163,7 +168,7 @@ EXAMPLE:
     --threads 16 \\
     --threads_kraken 8 \\
     --preload_size 32G \\
-    --bowtie2_preset very-sensitive
+    --bowtie2_preset sensitive
 """
         )
         System.exit(0)
@@ -199,6 +204,7 @@ Tip: run with --help for full usage.
 
     // Setup Paramaters
     def bam = file(params.bam)
+
     def decoys = file(params.decoys)
     def sample = bam.baseName
 
@@ -207,8 +213,11 @@ Tip: run with --help for full usage.
         error("BAM file not found: ${bam}")
     }
 
-    // define index path:
+
+    // define index paths:
     def bai = file("${bam}.bai")
+
+    CHECKFILES(bai)
 
     // sample.bam -> sample.bam.bai
     if (!bai.exists()) {
@@ -258,20 +267,26 @@ Tip: run with --help for full usage.
         | ALIGN_BOWTIE2
 
     // 3) unmapped from new BAM
-    unmapped2 = aligned.map { prefix, bam2, bai2 -> tuple(bam2, decoys, "${sample}.post") }
+    unmapped2 = aligned.map { prefix, bam2, bai2 -> tuple(bam2, bai2, decoys, "${sample}.post") }
         | FETCH_UNMAPPED_POST
 
     // 4) krakenuniq on final unmapped reads
-    KRAKENUNIQ(unmapped2)
+    unmapped2.map { prefix, r1, r2 -> tuple(prefix, params.kraken_db, r1, r2) }
+        | KRAKENUNIQ
 
     publish:
     host_depleted_reads = FETCH_UNMAPPED_POST.out
+    krakenuniq = KRAKENUNIQ.out
 }
 
 // Outputs to save in final directory
 output {
     host_depleted_reads {
-        path "${params.outdir}"
+        path ""
+        mode 'copy'
+    }
+    krakenuniq {
+        path ""
         mode 'copy'
     }
 }
