@@ -32,7 +32,7 @@ RUN bash ./install_krakenuniq.sh /opt/krakenuniq
 # ---- Final runtime image on Alpine 3.20 ----
 FROM alpine:3.20
 
-# Runtime dependencies only – no compiler
+# Runtime dependencies only
 RUN apk add --no-cache \
   bash \
   perl \
@@ -50,40 +50,58 @@ RUN apk add --no-cache \
   tar \
   rsync \
   libc6-compat \
-  gcompat
+  gcompat \
+  build-base \
+  zlib-dev \
+  bzip2-dev \
+  xz-dev \
+  perl \
+  python3 \
+  wget \
+  unzip
 
 # Copy the compiled KrakenUniq installation
 COPY --from=builder /opt/krakenuniq /opt/krakenuniq
 ENV PATH="/opt/krakenuniq/:$PATH"
 
 # Install Bowtie2 precompiled binary
-ENV BOWTIE2_VERSION=2.5.4
-RUN wget -O /tmp/bowtie2.zip \
-  https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VERSION}/bowtie2-${BOWTIE2_VERSION}-linux-x86_64.zip/download && \
-  unzip /tmp/bowtie2.zip -d /opt && \
-  rm /tmp/bowtie2.zip && \
-  ln -s /opt/bowtie2-${BOWTIE2_VERSION}-linux-x86_64/bowtie2* /usr/local/bin/
+ENV BOWTIE2_VERSION="2.5.4"
+
+# Install SIMDE
+ENV SIMDE_VERSION="0.8.2"
+RUN wget "https://github.com/simd-everywhere/simde/releases/download/v${SIMDE_VERSION}/simde-amalgamated-${SIMDE_VERSION}.tar.xz" \
+  && tar -xf simde-amalgamated-${SIMDE_VERSION}.tar.xz
+
+
+# Download Bowtie2 source zip from SourceForge and build
+RUN wget -O bowtie2-${BOWTIE2_VERSION}-source.zip \
+      "https://sourceforge.net/projects/bowtie-bio/files/bowtie2/${BOWTIE2_VERSION}/bowtie2-${BOWTIE2_VERSION}-source.zip/download" \
+ && unzip bowtie2-${BOWTIE2_VERSION}-source.zip \
+ && cd bowtie2-${BOWTIE2_VERSION} \
+ && cp -r /simde-amalgamated-${SIMDE_VERSION} simde \
+ && make -j"$(nproc)" \
+ && make install
 
 # Install samtools
-ENV SAMTOOLS_VERSION=1.22.1
-
-ENV HTSLIB_VERSION=1.22.1
-
-RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
-  wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
-  && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
-  && cd samtools-${SAMTOOLS_VERSION}/ \
-  && ./configure --prefix=/usr/local \
-  && make \
-  && make install
-
-
-RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
-  && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
-  && cd htslib-${HTSLIB_VERSION} \
-  && ./configure --prefix=/usr/local \
-  && make \
-  && make install 
+# ENV SAMTOOLS_VERSION=1.22.1
+#
+# ENV HTSLIB_VERSION=1.22.1
+#
+# RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
+#   wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+#   && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+#   && cd samtools-${SAMTOOLS_VERSION}/ \
+#   && ./configure --prefix=/usr/local \
+#   && make \
+#   && make install
+#
+#
+# RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
+#   && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
+#   && cd htslib-${HTSLIB_VERSION} \
+#   && ./configure --prefix=/usr/local \
+#   && make \
+#   && make install 
 
 
 # # Install Rust (We will remove this once we compile release versions of our tools
