@@ -64,11 +64,11 @@ RUN apk add --no-cache \
 COPY --from=builder /opt/krakenuniq /opt/krakenuniq
 ENV PATH="/opt/krakenuniq/:$PATH"
 
-# Install Bowtie2 precompiled binary
+# Compile Bowtie2
 ENV BOWTIE2_VERSION="2.5.4"
+ENV SIMDE_VERSION="0.8.2"
 
 # Install SIMDE
-ENV SIMDE_VERSION="0.8.2"
 RUN wget "https://github.com/simd-everywhere/simde/releases/download/v${SIMDE_VERSION}/simde-amalgamated-${SIMDE_VERSION}.tar.xz" \
   && tar -xf simde-amalgamated-${SIMDE_VERSION}.tar.xz
 
@@ -83,25 +83,24 @@ RUN wget -O bowtie2-${BOWTIE2_VERSION}-source.zip \
  && make install
 
 # Install samtools
-# ENV SAMTOOLS_VERSION=1.22.1
-#
-# ENV HTSLIB_VERSION=1.22.1
-#
-# RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
-#   wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
-#   && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
-#   && cd samtools-${SAMTOOLS_VERSION}/ \
-#   && ./configure --prefix=/usr/local \
-#   && make \
-#   && make install
-#
-#
-# RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
-#   && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
-#   && cd htslib-${HTSLIB_VERSION} \
-#   && ./configure --prefix=/usr/local \
-#   && make \
-#   && make install 
+ENV SAMTOOLS_VERSION=1.22.1
+ENV HTSLIB_VERSION=1.22.1
+
+RUN apk add build-base build-base zlib-dev bzip2-dev xz-dev ncurses-dev libcurl && \
+  wget -O samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+  && tar jxvf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
+  && cd samtools-${SAMTOOLS_VERSION}/ \
+  && ./configure --prefix=/usr/local \
+  && make \
+  && make install
+
+
+RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
+  && tar jxvf htslib-${HTSLIB_VERSION}.tar.bz2 \
+  && cd htslib-${HTSLIB_VERSION} \
+  && ./configure --prefix=/usr/local \
+  && make \
+  && make install 
 
 
 # # Install Rust (We will remove this once we compile release versions of our tools
