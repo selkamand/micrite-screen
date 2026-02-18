@@ -16,11 +16,13 @@ params {
     // path to txt file with decoy contig names
     decoys: Path
 
+    // Sample Identified
+    sampleid: String
 
     // Optional
     threads: Integer = 8
     threads_kraken: Integer = 2
-    preload_size: String = "16G"
+    preload_size: String = "2G"
 
     outdir: Path = "results"
 
@@ -32,13 +34,11 @@ params {
 
 
 process FETCH_UNMAPPED_PRE {
-    tag "${prefix}"
-
     input:
-    tuple path(bam), path(bai), path(decoys), val(prefix)
+    tuple val(sampleid), path(bam), path(decoys), path(bai)
 
     output:
-    tuple val(prefix), path("${prefix}.R1.fq.gz"), path("${prefix}.R2.fq.gz")
+    tuple val(sampleid), path("${sampleid}.unmapped.R1.fq.gz"), path("${sampleid}.unmapped.R2.fq.gz")
 
     script:
     """
@@ -46,40 +46,38 @@ process FETCH_UNMAPPED_PRE {
      fetch_unmapped_reads.sh \
     --bam ${bam} \
     --decoys ${decoys} \
-    --prefix ${prefix} \
+    --prefix "${sampleid}.unmapped" \
     --threads ${params.threads} \
     --outdir .
   """
 }
 
 process FETCH_UNMAPPED_POST {
-    tag "${prefix}"
+    tag "Unmap from ${bam}"
 
     input:
-    tuple path(bam), path(bai), path(decoys), val(prefix)
+    tuple val(sampleid), path(bam), path(decoys), path(bai)
 
     output:
-    tuple val(prefix), path("${prefix}.R1.fq.gz"), path("${prefix}.R2.fq.gz")
+    tuple val(sampleid), path("${sampleid}.hostdepleted.R1.fq.gz"), path("${sampleid}.hostdepleted.R2.fq.gz")
 
     script:
     """
     fetch_unmapped_reads.sh \
     --bam ${bam} \
     --decoys ${decoys} \
-    --prefix ${prefix} \
+    --prefix ${sampleid}.hostdepleted \
     --threads ${params.threads} \
     --outdir .
   """
 }
 
 process ALIGN_BOWTIE2 {
-    tag "${prefix}"
-
     input:
-    tuple path(ref), val(prefix), path(r1), path(r2), path(bowtie2_indices)
+    tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes)
 
     output:
-    tuple val(prefix), path("${prefix}.sorted.bam"), path("${prefix}.sorted.bam.bai")
+    tuple val(sampleid), path("${sampleid}.realigned.sorted.bam"), path("${sampleid}.realigned.sorted.bam.bai")
 
     script:
     """
@@ -87,41 +85,46 @@ process ALIGN_BOWTIE2 {
     -x ${ref} \
     -1 ${r1} \
     -2 ${r2} \
-    -o ${prefix} \
+    -o ${sampleid}.realigned \
     -t ${params.threads} \
     --preset ${params.bowtie2_preset}
   """
 }
 
 process KRAKENUNIQ {
-    tag "${prefix}"
+    tag "${sampleid}"
+    debug true
 
     input:
-    tuple val(prefix), path(krakendb), path(r1), path(r2)
+    tuple val(sampleid), path(krakendb), path(r1), path(r2)
 
     output:
-    path "${prefix}.krakenuniq.report.txt"
+    tuple val(sampleid), path("${sampleid}.krakenuniq.report.txt"), path("${sampleid}.kout.txt")
 
     script:
     """
-  krakenuniq \
-    --paired \
-    --preload-size ${params.preload_size} \
-    --threads ${params.threads_kraken} \
-    --db ${krakendb} \
-    --report ${prefix}.krakenuniq.report.txt \
-    --output off \
-    ${r1} ${r2}
-  """
+    set -euo pipefail
+
+    krakenuniq \
+        --paired \
+        --preload-size ${params.preload_size} \
+        --threads ${params.threads_kraken} \
+        --db ${krakendb} \
+        --report ${sampleid}.krakenuniq.report.txt \
+        --output ${sampleid}.kout.txt \
+        ${r1} ${r2}
+    """
 }
 
 process CHECKFILES {
+    tag "${p}"
+
     input:
     path p
 
     script:
     """
-    echo "Failed to find file ${p}"
+    test -e "${p}" || { echo "Missing required file: ${p}" >&2; exit 1; }
     """
 }
 
@@ -132,44 +135,44 @@ workflow {
     if (params.help) {
         log.info(
             """
-USAGE:
-  nextflow run main.nf \\
-    --ref <bowtie2_index_prefix> \\
-    --kraken_db <krakenuniq_db_dir> \\
-    --bam <input.bam> \\
-    --decoys <contigs.txt> \\
-    [options]
+            USAGE:
+                nextflow run main.nf \\
+                --ref <bowtie2_index_prefix> \\
+                --kraken_db <krakenuniq_db_dir> \\
+                --bam <input.bam> \\
+                --decoys <contigs.txt> \\
+                [options]
 
-REQUIRED:
-  --ref            Bowtie2 index prefix for T2T reference genome to use in host depletion step (e.g. /path/to/index/prefix)
-  --kraken_db      Krakenuniq database directory
-  --bam            Input BAM file
-  --decoys         Path to txt file with decoy contig names (one per line)
+            REQUIRED:
+                --ref            Bowtie2 index prefix for T2T reference genome to use in host depletion step (e.g. /path/to/index/prefix)
+                --kraken_db      Krakenuniq database directory
+                --bam            Input BAM file
+                --decoys         Path to txt file with decoy contig names (one per line)
 
-OPTIONAL (defaults shown):
-  --outdir         Output directory (default: ${params.outdir})
-  --threads        Threads for fetch_unmapped_reads + bowtie2 (default: ${params.threads})
-  --threads_kraken  Threads for krakenuniq (default: ${params.threads_kraken})
-  --preload_size   Krakenuniq preload size (default: ${params.preload_size})
-  --bowtie2_preset Bowtie2 preset: very-fast|fast|sensitive|very-sensitive (default: ${params.bowtie2_preset})
+           OPTIONAL (defaults shown):
+                --outdir         Output directory (default: ${params.outdir})
+                --threads        Threads for fetch_unmapped_reads + bowtie2 (default: ${params.threads})
+                --threads_kraken  Threads for krakenuniq (default: ${params.threads_kraken})
+                --preload_size   Krakenuniq preload size (default: ${params.preload_size})
+                --bowtie2_preset Bowtie2 preset: very-fast|fast|sensitive|very-sensitive (default: ${params.bowtie2_preset})
 
-HOW TO SET PARAMS:
-  Use space or '=' forms:
-    --threads 16
-    --threads=16
+           HOW TO SET PARAMS:
+                Use space or '=' forms:
+                --threads 16
+                --threads=16
 
-EXAMPLE:
-  nextflow run main.nf -resume \\
-    --ref /refs/hg38/bowtie2/hg38 \\
-    --kraken_db /db/krakenuniq \\
-    --bam sample.bam \\
-    --decoys decoys.txt \\
-    --outdir results \\
-    --threads 16 \\
-    --threads_kraken 8 \\
-    --preload_size 32G \\
-    --bowtie2_preset sensitive
-"""
+           EXAMPLE:
+                nextflow run main.nf -resume \\
+                --ref /refs/hg38/bowtie2/hg38 \\
+                --kraken_db /db/krakenuniq \\
+                --bam sample.bam \\
+                --decoys decoys.txt \\
+                --outdir results \\
+                --threads 16 \\
+                --threads_kraken 8 \\
+                --preload_size 32G \\
+                --bowtie2_preset sensitive
+           """
         )
         System.exit(0)
     }
@@ -178,14 +181,14 @@ EXAMPLE:
     if (!params.ref || !params.kraken_db || !params.bam || !params.decoys) {
         error(
             """
-Missing required params:
-  --ref <bowtie2 index prefix for T2T reference genome>
-  --kraken_db <krakenuniq db dir>
-  --bam <input.bam>
-  --decoys <contigs.txt>
+                Missing required params:
+                --ref <bowtie2 index prefix for T2T reference genome>
+                --kraken_db <krakenuniq db dir>
+                --bam <input.bam>
+                --decoys <contigs.txt>
 
-Tip: run with --help for full usage.
-"""
+                Tip: run with --help for full usage.
+            """
         )
     }
 
@@ -194,19 +197,19 @@ Tip: run with --help for full usage.
     if (!allowed_presets.contains(params.bowtie2_preset as String)) {
         error(
             """
-Invalid --bowtie2_preset '${params.bowtie2_preset}'.
-Valid values: very-fast, fast, sensitive, very-sensitive
+                Invalid --bowtie2_preset '${params.bowtie2_preset}'.
+                Valid values: very-fast, fast, sensitive, very-sensitive
 
-Tip: run with --help for full usage.
-"""
+                Tip: run with --help for full usage.
+            """
         )
     }
 
     // Setup Paramaters
     def bam = file(params.bam)
-
     def decoys = file(params.decoys)
-    def sample = bam.baseName
+    def kraken_db = file(params.kraken_db)
+    def sampleid = params.sampleid
 
     // Check if required files exist
     if (!bam.exists()) {
@@ -216,23 +219,8 @@ Tip: run with --help for full usage.
 
     // define index paths:
     def bai = file("${bam}.bai")
-
-    CHECKFILES(bai)
-
-    // sample.bam -> sample.bam.bai
-    if (!bai.exists()) {
-        error("BAM index not found: ${bai}")
-    }
-    else {
-        log.info("Bam index found: ${bai}")
-    }
-
-    if (!decoys.exists()) {
-        error("Decoys file not found: ${decoys}")
-    }
-
-
     def ref = file(params.ref)
+
     def bowtie_index = [
         file("${ref}.1.bt2"),
         file("${ref}.2.bt2"),
@@ -242,36 +230,45 @@ Tip: run with --help for full usage.
         file("${ref}.rev.2.bt2"),
     ]
 
-    // fail fast if any missing
-    def missing = bowtie_index.findAll { val -> !val.exists() }
+    // Combine All required files (+ indexes) into a single list
+    def required_files = [ref, bam, bai, decoys] + bowtie_index
 
-    if (missing) {
-        error("Missing bowtie2 index files:\n  " + missing.join('\n  '))
-    }
-
-    if (!ref.exists()) {
-        error("Reference genome not found ${ref}")
-    }
-
+    // Check all required files exist
+    ch_files = channel.fromList(required_files)
+    //CHECKFILES(ch_files)
 
     // Ensure krakenuniq database exists:
     if (!file(params.kraken_db).exists()) {
         error("Krakenuniq DB dir not found: ${params.kraken_db}")
     }
 
+    // Check Sample Identifier is Valid
+    if (!(sampleid ==~ /^[A-Za-z0-9._-]+$/)) {
+        error(
+            """
+            Invalid sampleid: '${params.sampleid}'
+
+            Only letters, numbers, '.', '_', and '-' are allowed.
+            No spaces or special characters.
+            """
+        )
+    }
+
     // 1) unmapped from original BAM
-    unmapped1 = FETCH_UNMAPPED_PRE(channel.of(tuple(bam, bai, decoys, "${sample}.pre")))
+    unmapped_reads1_ch = FETCH_UNMAPPED_PRE(channel.of(tuple(sampleid, bam, decoys, bai)))
+
 
     // 2) align to reference
-    aligned = unmapped1.map { prefix, r1, r2 -> tuple(ref, prefix, r1, r2, bowtie_index) }
+    realigned_ch = unmapped_reads1_ch.map { s, r1, r2 -> tuple(s, ref, r1, r2, bowtie_index) }
         | ALIGN_BOWTIE2
 
+
     // 3) unmapped from new BAM
-    unmapped2 = aligned.map { prefix, bam2, bai2 -> tuple(bam2, bai2, decoys, "${sample}.post") }
+    host_depleted_ch = realigned_ch.map { s, bam_realigned, bai_realigned -> tuple(s, bam_realigned, decoys, bai_realigned) }
         | FETCH_UNMAPPED_POST
 
     // 4) krakenuniq on final unmapped reads
-    unmapped2.map { prefix, r1, r2 -> tuple(prefix, params.kraken_db, r1, r2) }
+    host_depleted_ch.map { s, r1, r2 -> tuple(s, kraken_db, r1, r2) }
         | KRAKENUNIQ
 
     publish:
