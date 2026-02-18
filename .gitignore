@@ -10,6 +10,8 @@ trace.txt
 timeline.html
 report.html
 dag.html
+.nf-test/
+.nf-test.log
 
 # Optional: pipeline results (adjust if you want to keep them)
 results/

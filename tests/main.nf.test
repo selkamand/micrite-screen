@@ -1,0 +1,23 @@
+nextflow_pipeline {
+
+    name "screen"
+    script "main.nf"
+
+    test("Pipeline runs end-to-end without error using minimal krakenuniq database") {
+
+      when {
+            params {
+              ref = "${projectDir}/testfiles/data/ref/ref.fa"
+              kraken_db = "${projectDir}/testfiles/data/dbs/minuku"
+              bam = "${projectDir}/testfiles/data/aligned.no_decoy.bam" 
+              decoys = "${projectDir}/testfiles/data/decoys.txt"
+              sampleid = "testsample"
+              outdir = "results"
+            }
+        }
+      
+      then {
+        assert workflow.success
+      }
+    }
+}
