@@ -103,13 +103,25 @@ docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci
 
 This repo includes some small files for testing. If you git clone the repo you should be able to run the following.
 
-You may need to change `--profile` from singularity to docker if running on MacOS
+You may need to change `-profile` from singularity to docker if running on MacOS
 
 ```
-nextflow run . --profile singularity \
+nextflow run . -profile singularity \
   --ref testfiles/data/ref/ref.fa \
   --kraken_db testfiles/data/dbs/minuku/ \
   --bam testfiles/data/aligned.no_decoy.bam \ 
   --decoys testfiles/data/decoys.txt \
   --outdir outdir 
+```
+
+We also supply a test profile to allow testing with:
+
+```
+nextflow run . -profile test
+```
+
+Or using nf-test
+
+```
+nf-test test
 ```
