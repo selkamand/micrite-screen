@@ -103,6 +103,11 @@ RUN wget -O htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/
   && make install 
 
 
+# Install seqkit
+ENV SEQKIT_VERSION="2.11.0"
+RUN wget "https://github.com/shenwei356/seqkit/releases/download/v${SEQKIT_VERSION}/seqkit_linux_amd64.tar.gz" \
+  && tar xzf "seqkit_linux_amd64.tar.gz" \
+  && mv seqkit /usr/local/bin/
 # # Install Rust (We will remove this once we compile release versions of our tools
 # RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
