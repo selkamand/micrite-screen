@@ -117,15 +117,22 @@ process KRAKENUNIQ {
 }
 
 
-process CHECKFILES {
-    tag "${p}"
-
+process HOST_DEPLETION_STATS {
     input:
-    path p
+    tuple val(sampleid), path(bam_original), path(r1_unmapped), path(r2_unmapped), path(r1_depleted), path(r2_depleted), path(bai_original)
+
+    output:
+    tuple val(sampleid), path("${sampleid}.original.bam.stats.tsv"), path("${sampleid}.unmapped.stats.tsv"), path("${sampleid}.host_depleted.stats.tsv")
 
     script:
     """
-    test -e "${p}" || { echo "Missing required file: ${p}" >&2; exit 1; }
+    set -euo pipefail
+
+    samtools flagstat ${bam_original} > ${sampleid}.original.bam.stats.tsv
+
+    seqkit stats ${r1_unmapped} ${r2_unmapped} > ${sampleid}.unmapped.stats.tsv
+
+    seqkit stats ${r1_depleted} ${r2_depleted} > ${sampleid}.host_depleted.stats.tsv
     """
 }
 
@@ -284,9 +291,25 @@ workflow {
     host_depleted_ch.map { s, r1, r2 -> tuple(s, kraken_db, r1, r2) }
         | KRAKENUNIQ
 
+    // 5) stats
+    // Channel carrying the "original" context we need for stats
+    orig_ch = channel.of(tuple(sampleid, bam, bai))
+
+    // Join everything by sampleid (tuple index 0), then reorder into HOST_DEPLETION_STATS input format
+    stats_in_ch = orig_ch
+        .join(unmapped_reads1_ch, by: 0)
+        .join(host_depleted_ch, by: 0)
+        .map { sid, bam0, bai0, r1u, r2u, r1d, r2d ->
+            tuple(sid, bam0, r1u, r2u, r1d, r2d, bai0)
+        }
+
+    // Now the process will actually run
+    host_depletion_stats_ch = HOST_DEPLETION_STATS(stats_in_ch)
+
     publish:
     host_depleted_reads = FETCH_UNMAPPED_POST.out
     krakenuniq = KRAKENUNIQ.out
+    stats = HOST_DEPLETION_STATS.out
 }
 
 // Outputs to save in final directory
@@ -297,6 +320,10 @@ output {
     }
     krakenuniq {
         path "${params.outdir}/${params.sampleid}"
+        mode 'copy'
+    }
+    stats {
+        path "${params.outdir}/${params.sampleid}stats"
         mode 'copy'
     }
 }

@@ -117,10 +117,4 @@ RUN wget "https://github.com/shenwei356/seqkit/releases/download/v${SEQKIT_VERSI
 # RUN apk add --no-cache build-base pkgconf bzip2-dev zlib-dev xz-dev openssl-dev curl-dev libressl-dev \  
 #   && cargo install --git https://github.com/selkamand/micrite
 
-# Copy Scripts
-COPY --chmod=0755 scripts/* /app/
-
-# Add scripts path
-ENV PATH="$PATH:/app"
-
 WORKDIR /app

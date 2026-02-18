@@ -90,13 +90,13 @@ From inside this directory.
 Build local version for OSX
 
 ```{bash}
-docker buildx build --platform linux/arm64 --load --tag selkamandcci/micrite-screen:0.0.1 .
+docker buildx build --platform linux/arm64 --load --tag selkamandcci/micrite-screen:0.0.2 .
 ```
 
 Build final version to push to dockerhub
 
 ```{bash}
-docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci/micrite-screen:0.0.1 .
+docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci/micrite-screen:0.0.2 .
 ```
 
 # Testing 
