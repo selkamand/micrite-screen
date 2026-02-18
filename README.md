@@ -1,4 +1,4 @@
-# goldmicrobe
+# micrite-screen
 
 A nextflow workflow for detection of microbial reads from cancer whole-genome-sequenced bams.
 
@@ -47,10 +47,10 @@ mv database.kdb kuniq_microbialdb_minus_kdb.20230808
 
 ```
 
-nextflow run main.nf \
+nextflow run selkamand/micrite-screen \
   --bam sample.bam \
   --decoys contigs.txt \
-  --ref /path/to/bowtie2/index/prefix/chm13v2.0 \
+  --ref /path/to/bowtie2/index/prefix/chm13v2.0.fa \
   --kraken_db /path/to/krakenuniq_db \
   --threads 8 \
   --threads_kraken 4 \
@@ -90,13 +90,13 @@ From inside this directory.
 Build local version for OSX
 
 ```{bash}
-docker buildx build --platform linux/arm64 --load --tag selkamandcci/goldmicrobe:0.0.1 .
+docker buildx build --platform linux/arm64 --load --tag selkamandcci/micrite-screen:0.0.1 .
 ```
 
 Build final version to push to dockerhub
 
 ```{bash}
-docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci/goldmicrobe:0.0.1 .
+docker buildx build --push --platform linux/amd64,linux/arm64 --tag selkamandcci/micrite-screen:0.0.1 .
 ```
 
 # Testing 
