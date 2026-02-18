@@ -24,7 +24,7 @@ params {
     threads_kraken: Integer = 2
     preload_size: String = "2G"
 
-    outdir: Path = "results"
+    outdir: Path = "micritescreen"
 
     // Configure bowtie2 preset, default to sensitive
     // Allowed: very-fast, fast, sensitive, very-sensitive
@@ -115,6 +115,7 @@ process KRAKENUNIQ {
         ${r1} ${r2}
     """
 }
+
 
 process CHECKFILES {
     tag "${p}"
@@ -230,12 +231,8 @@ workflow {
         file("${ref}.rev.2.bt2"),
     ]
 
-    // Combine All required files (+ indexes) into a single list
-    def required_files = [ref, bam, bai, decoys] + bowtie_index
 
-    // Check all required files exist
-    ch_files = channel.fromList(required_files)
-    //CHECKFILES(ch_files)
+    // File Checks
 
     // Ensure krakenuniq database exists:
     if (!file(params.kraken_db).exists()) {
@@ -253,6 +250,22 @@ workflow {
             """
         )
     }
+
+    // Check all required files exist
+    bowtie_index.each { f ->
+        if (!f.exists()) {
+            error("Missing bowtie index file: ${f}")
+        }
+    }
+
+    if (!bai.exists()) {
+        error("Missing required bam index file: ${bai}")
+    }
+
+    if (!ref.exists()) {
+        error("Failed to find reference genome for host depletion at: ${ref}")
+    }
+
 
     // 1) unmapped from original BAM
     unmapped_reads1_ch = FETCH_UNMAPPED_PRE(channel.of(tuple(sampleid, bam, decoys, bai)))
@@ -279,11 +292,11 @@ workflow {
 // Outputs to save in final directory
 output {
     host_depleted_reads {
-        path ""
+        path "${params.outdir}/${params.sampleid}"
         mode 'copy'
     }
     krakenuniq {
-        path ""
+        path "${params.outdir}/${params.sampleid}"
         mode 'copy'
     }
 }
