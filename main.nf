@@ -303,6 +303,7 @@ workflow {
             tuple(sid, bam0, r1u, r2u, r1d, r2d, bai0)
         }
 
+
     // Now the process will actually run
     host_depletion_stats_ch = HOST_DEPLETION_STATS(stats_in_ch)
 
@@ -323,7 +324,7 @@ output {
         mode 'copy'
     }
     stats {
-        path "${params.outdir}/${params.sampleid}stats"
+        path "${params.outdir}/${params.sampleid}/stats"
         mode 'copy'
     }
 }
