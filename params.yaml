@@ -1,0 +1,14 @@
+# Sample Metadata
+bam: "testfiles/data/aligned.no_decoy.bam" 
+sampleid: "testsample"
+
+
+# Refs
+ref: "testfiles/data/ref/ref.fa"
+kraken_db: "testfiles/data/dbs/minuku"
+decoys: "testfiles/data/decoys.txt"
+
+# Run Params
+threads: 4
+threads_kraken: 4
+preload_size: "2G"

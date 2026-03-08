@@ -59,6 +59,13 @@ nextflow run selkamand/micrite-screen \
   --outdir results
 ```
 
+Because there are so many options, its much easier to specify the paramaters using a yaml file.
+For example within the root directory of this repo you could run
+
+```
+nextflow run . -profile docker -params-file params.yaml
+```
+
 
 ## Output Files
 
