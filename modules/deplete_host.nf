@@ -1,7 +1,6 @@
+nextflow.enable.dsl = 2
+
 process FETCH_UNMAPPED_PRE {
-
-    cpus params.threads
-
     input:
     tuple val(sampleid), path(bam), path(decoys), path(bai)
 
@@ -23,7 +22,6 @@ process FETCH_UNMAPPED_PRE {
 process FETCH_UNMAPPED_POST {
 
     tag "Unmap from ${bam}"
-    cpus params.threads
 
     input:
     tuple val(sampleid), path(bam), path(decoys), path(bai)
@@ -43,9 +41,6 @@ process FETCH_UNMAPPED_POST {
 }
 
 process ALIGN_BOWTIE2 {
-
-    cpus params.threads
-
     input:
     tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes), val(preset)
 
@@ -65,9 +60,6 @@ process ALIGN_BOWTIE2 {
 }
 
 process HOST_DEPLETION_STATS {
-
-    cpus 2
-
     input:
     tuple val(sampleid), path(bam_original), path(r1_unmapped), path(r2_unmapped), path(r1_depleted), path(r2_depleted), path(bai_original)
 

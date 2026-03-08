@@ -22,10 +22,6 @@ params {
     sampleid: String
 
     // Optional
-    threads: Integer = 8
-    threads_kraken: Integer = 2
-    preload_size: String = "2G"
-
     outdir: Path = "micritescreen"
 
     // Configure bowtie2 preset, default to sensitive
