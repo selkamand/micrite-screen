@@ -1,4 +1,4 @@
-# micrite-screen
+# micrite-screen <a href="https://github.com/selkamand/micrite-screen"><img src="figures/logo.png" alt="micrite-screen website" align="right" height="138"/></a>
 
 A nextflow workflow for detection of microbial reads from cancer whole-genome-sequenced bams.
 
