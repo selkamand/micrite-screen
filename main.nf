@@ -1,3 +1,5 @@
+#!/usr/bin/env nexftlow
+
 params {
 
     // Help flag (so `--help` works)
@@ -31,65 +33,7 @@ params {
     bowtie2_preset: String = "sensitive"
 }
 
-
-
-process FETCH_UNMAPPED_PRE {
-    input:
-    tuple val(sampleid), path(bam), path(decoys), path(bai)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.unmapped.R1.fq.gz"), path("${sampleid}.unmapped.R2.fq.gz")
-
-    script:
-    """
-    ls;
-     fetch_unmapped_reads.sh \
-    --bam ${bam} \
-    --decoys ${decoys} \
-    --prefix "${sampleid}.unmapped" \
-    --threads ${params.threads} \
-    --outdir .
-  """
-}
-
-process FETCH_UNMAPPED_POST {
-    tag "Unmap from ${bam}"
-
-    input:
-    tuple val(sampleid), path(bam), path(decoys), path(bai)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.hostdepleted.R1.fq.gz"), path("${sampleid}.hostdepleted.R2.fq.gz")
-
-    script:
-    """
-    fetch_unmapped_reads.sh \
-    --bam ${bam} \
-    --decoys ${decoys} \
-    --prefix ${sampleid}.hostdepleted \
-    --threads ${params.threads} \
-    --outdir .
-  """
-}
-
-process ALIGN_BOWTIE2 {
-    input:
-    tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.realigned.sorted.bam"), path("${sampleid}.realigned.sorted.bam.bai")
-
-    script:
-    """
-  align_bowtie2.sh \
-    -x ${ref} \
-    -1 ${r1} \
-    -2 ${r2} \
-    -o ${sampleid}.realigned \
-    -t ${params.threads} \
-    --preset ${params.bowtie2_preset}
-  """
-}
+include { FETCH_UNMAPPED_PRE ; FETCH_UNMAPPED_POST ; ALIGN_BOWTIE2 ; HOST_DEPLETION_STATS } from './modules/deplete_host.nf'
 
 process KRAKENUNIQ {
     tag "${sampleid}"
@@ -113,26 +57,6 @@ process KRAKENUNIQ {
         --report ${sampleid}.krakenuniq.report.txt \
         --output ${sampleid}.kout.txt \
         ${r1} ${r2}
-    """
-}
-
-
-process HOST_DEPLETION_STATS {
-    input:
-    tuple val(sampleid), path(bam_original), path(r1_unmapped), path(r2_unmapped), path(r1_depleted), path(r2_depleted), path(bai_original)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.original.bam.stats.tsv"), path("${sampleid}.unmapped.stats.tsv"), path("${sampleid}.host_depleted.stats.tsv")
-
-    script:
-    """
-    set -euo pipefail
-
-    samtools flagstat ${bam_original} > ${sampleid}.original.bam.stats.tsv
-
-    seqkit stats ${r1_unmapped} ${r2_unmapped} > ${sampleid}.unmapped.stats.tsv
-
-    seqkit stats ${r1_depleted} ${r2_depleted} > ${sampleid}.host_depleted.stats.tsv
     """
 }
 
@@ -279,7 +203,11 @@ workflow {
 
 
     // 2) align to reference
-    realigned_ch = unmapped_reads1_ch.map { s, r1, r2 -> tuple(s, ref, r1, r2, bowtie_index) }
+
+    // Grab Unmapped read info and pass to ALIGN_BOWTIE2
+    realigned_ch = unmapped_reads1_ch.map { s, r1, r2 ->
+        tuple(s, ref, r1, r2, bowtie_index, params.bowtie2_preset)
+    }
         | ALIGN_BOWTIE2
 
 
@@ -304,8 +232,8 @@ workflow {
         }
 
 
-    // Now the process will actually run
-    host_depletion_stats_ch = HOST_DEPLETION_STATS(stats_in_ch)
+    // Compute the host depletion stats
+    HOST_DEPLETION_STATS(stats_in_ch)
 
     publish:
     host_depleted_reads = FETCH_UNMAPPED_POST.out

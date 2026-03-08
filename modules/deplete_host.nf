@@ -47,7 +47,7 @@ process ALIGN_BOWTIE2 {
     cpus params.threads
 
     input:
-    tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes)
+    tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes), val(preset)
 
     output:
     tuple val(sampleid), path("${sampleid}.realigned.sorted.bam"), path("${sampleid}.realigned.sorted.bam.bai")
@@ -59,8 +59,8 @@ process ALIGN_BOWTIE2 {
     -1 ${r1} \
     -2 ${r2} \
     -o ${sampleid}.realigned \
-    -t ${params.threads} \
-    --preset ${task.cpus}
+    -t ${task.cpus} \
+    --preset ${preset}
   """
 }
 
