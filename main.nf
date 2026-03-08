@@ -34,31 +34,7 @@ params {
 }
 
 include { FETCH_UNMAPPED_PRE ; FETCH_UNMAPPED_POST ; ALIGN_BOWTIE2 ; HOST_DEPLETION_STATS } from './modules/deplete_host.nf'
-
-process KRAKENUNIQ {
-    tag "${sampleid}"
-    debug true
-
-    input:
-    tuple val(sampleid), path(krakendb), path(r1), path(r2)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.krakenuniq.report.txt"), path("${sampleid}.kout.txt")
-
-    script:
-    """
-    set -euo pipefail
-
-    krakenuniq \
-        --paired \
-        --preload-size ${params.preload_size} \
-        --threads ${params.threads_kraken} \
-        --db ${krakendb} \
-        --report ${sampleid}.krakenuniq.report.txt \
-        --output ${sampleid}.kout.txt \
-        ${r1} ${r2}
-    """
-}
+include { KRAKENUNIQ } from './modules/classify.nf'
 
 workflow {
 
