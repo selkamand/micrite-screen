@@ -32,13 +32,9 @@ params {
 include { FETCH_UNMAPPED_PRE ; FETCH_UNMAPPED_POST ; ALIGN_BOWTIE2 ; HOST_DEPLETION_STATS } from './modules/deplete_host.nf'
 include { KRAKENUNIQ } from './modules/classify.nf'
 
-workflow {
-
-    main:
-    // Print help/usage and exit
-    if (params.help) {
-        log.info(
-            """
+def usage() {
+    log.info(
+        """
             USAGE:
                 nextflow run main.nf \\
                 --ref <bowtie2_index_prefix> \\
@@ -55,9 +51,6 @@ workflow {
 
            OPTIONAL (defaults shown):
                 --outdir         Output directory (default: ${params.outdir})
-                --threads        Threads for fetch_unmapped_reads + bowtie2 (default: ${params.threads})
-                --threads_kraken  Threads for krakenuniq (default: ${params.threads_kraken})
-                --preload_size   Krakenuniq preload size (default: ${params.preload_size})
                 --bowtie2_preset Bowtie2 preset: very-fast|fast|sensitive|very-sensitive (default: ${params.bowtie2_preset})
 
            HOW TO SET PARAMS:
@@ -77,8 +70,16 @@ workflow {
                 --preload_size 32G \\
                 --bowtie2_preset sensitive
            """
-        )
-        System.exit(0)
+    )
+    System.exit(0)
+}
+
+workflow {
+
+    main:
+    // Print help/usage and exit
+    if (params.help) {
+        usage()
     }
 
     // Fail fast: only required params
@@ -136,7 +137,6 @@ workflow {
 
 
     // File Checks
-
     // Ensure krakenuniq database exists:
     if (!file(params.kraken_db).exists()) {
         error("Krakenuniq DB dir not found: ${params.kraken_db}")
@@ -175,7 +175,6 @@ workflow {
 
 
     // 2) align to reference
-
     // Grab Unmapped read info and pass to ALIGN_BOWTIE2
     realigned_ch = unmapped_reads1_ch.map { s, r1, r2 ->
         tuple(s, ref, r1, r2, bowtie_index, params.bowtie2_preset)
