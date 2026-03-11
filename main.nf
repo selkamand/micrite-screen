@@ -1,4 +1,4 @@
-#!/usr/bin/env nexftlow
+#!/usr/bin/env nextflow
 
 params {
 
