@@ -28,7 +28,7 @@ params {
     // Allowed: very-fast, fast, sensitive, very-sensitive
     bowtie2_preset: String = "sensitive"
 
-    // Run pipeline up to host-depleted reads. Do not proceed to classification
+    // Run pipeline up to host-depleted reads but do not proceed to classification
     skip_classification: Boolean = false
 }
 
