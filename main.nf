@@ -27,10 +27,14 @@ params {
     // Configure bowtie2 preset, default to sensitive
     // Allowed: very-fast, fast, sensitive, very-sensitive
     bowtie2_preset: String = "sensitive"
+
+    // Run pipeline up to host-depleted reads. Do not proceed to classification
+    skip_classification: Boolean = false
 }
 
 include { DEPLETE_HOST } from "./subworkflows/host_depletion.nf"
 include { KRAKENUNIQ } from './modules/classify.nf'
+include { KREPORT_TO_KRONA } from "./modules/kreport_to_krona.nf"
 
 def usage() {
     log.info(
@@ -51,7 +55,7 @@ def usage() {
       --sampleid         Sample identifier
 
     OPTIONAL:
-      --kraken_db            Krakenuniq DB directory; required only if --run_classification true
+      --kraken_db            Krakenuniq DB directory; required only if --skip_classification is false
       --outdir               Output directory (default: ${params.outdir})
       --bowtie2_preset       very-fast|fast|sensitive|very-sensitive (default: ${params.bowtie2_preset})
     """
@@ -123,7 +127,7 @@ def validateFiles() {
         }
     }
 
-    if (params.run_classification) {
+    if (!params.skip_classification) {
         def kraken_db = file(params.kraken_db)
         if (!kraken_db.exists()) {
             error("Krakenuniq DB dir not found: ${kraken_db}")
@@ -186,16 +190,27 @@ workflow {
     // Deplete Host Reads
     host_depleted_ch = DEPLETE_HOST(host_depletion_input_ch)
 
-    // Run KrakenUniq to classify reads 
-    krakenuniq_ch = host_depleted_ch.reads.map { sid, r1, r2 ->
-        tuple(sid, kraken_db, r1, r2)
+    // Always define kraken channels so publish: can see them even if classification is skipped
+    krakenuniq_ch = channel.empty()
+    krona_ch = channel.empty()
+
+    if (!params.skip_classification) {
+
+        // Run KrakenUniq to classify reads 
+        krakenuniq_ch = host_depleted_ch.reads.map { sid, r1, r2 ->
+            tuple(sid, kraken_db, r1, r2)
+        }
+            | KRAKENUNIQ
+
+        // Generate Krona compatible file from report
+        krona_ch = KREPORT_TO_KRONA(krakenuniq_ch)
     }
-        | KRAKENUNIQ
 
     publish:
     host_depleted_reads = host_depleted_ch.reads
     stats = host_depleted_ch.stats
     krakenuniq = krakenuniq_ch
+    krona = krona_ch
 }
 
 // Outputs to save in final directory
@@ -204,12 +219,16 @@ output {
         path "${params.outdir}/${params.sampleid}"
         mode 'copy'
     }
+    stats {
+        path "${params.outdir}/${params.sampleid}/stats"
+        mode 'copy'
+    }
     krakenuniq {
         path "${params.outdir}/${params.sampleid}"
         mode 'copy'
     }
-    stats {
-        path "${params.outdir}/${params.sampleid}/stats"
+    krona {
+        path "${params.outdir}/${params.sampleid}"
         mode 'copy'
     }
 }
