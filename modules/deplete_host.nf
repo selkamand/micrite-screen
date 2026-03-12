@@ -2,7 +2,7 @@ nextflow.enable.dsl = 2
 
 process FETCH_UNMAPPED_PRE {
     input:
-    tuple val(sampleid), path(bam), path(decoys), path(bai)
+    tuple val(sampleid), path(bam), path(bai), path(decoys)
 
     output:
     tuple val(sampleid), path("${sampleid}.unmapped.R1.fq.gz"), path("${sampleid}.unmapped.R2.fq.gz")
@@ -24,7 +24,7 @@ process FETCH_UNMAPPED_POST {
     tag "Unmap from ${bam}"
 
     input:
-    tuple val(sampleid), path(bam), path(decoys), path(bai)
+    tuple val(sampleid), path(bam), path(bai), path(decoys)
 
     output:
     tuple val(sampleid), path("${sampleid}.hostdepleted.R1.fq.gz"), path("${sampleid}.hostdepleted.R2.fq.gz")
@@ -61,7 +61,7 @@ process ALIGN_BOWTIE2 {
 
 process HOST_DEPLETION_STATS {
     input:
-    tuple val(sampleid), path(bam_original), path(r1_unmapped), path(r2_unmapped), path(r1_depleted), path(r2_depleted), path(bai_original)
+    tuple val(sampleid), path(bam_original), path(bai_original), path(decoys), path(r1_unmapped), path(r2_unmapped), path(r1_depleted), path(r2_depleted)
 
     output:
     tuple val(sampleid), path("${sampleid}.original.bam.stats.tsv"), path("${sampleid}.unmapped.stats.tsv"), path("${sampleid}.host_depleted.stats.tsv")
