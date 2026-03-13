@@ -5,6 +5,17 @@ params {
     // Help flag (so `--help` works)
     help: Boolean = false
 
+    // Run host depletion and microbial screen on 'bam' or 'fastq'
+    mode = "bam"
+
+    // Input bam (reads aligned to host genome)
+    // Either a bam or a pair of fastq files must be supplied
+    bam: Path?
+
+    // Input FASTQs (Must be supplied if mode = "fastq") 
+    r1: Path?
+    r2: Path?
+
     // [[ Required inputs ]]
     // bowtie2 index prefix
     ref: Path
@@ -12,10 +23,7 @@ params {
     // krakenuniq database directory
     kraken_db: Path
 
-    // input bam
-    bam: Path
-
-    // path to txt file with decoy contig names
+    // Path to txt file with decoy contig names
     decoys: Path
 
     // Sample Identified
@@ -32,7 +40,7 @@ params {
     skip_classification: Boolean = false
 }
 
-include { DEPLETE_HOST } from "./subworkflows/host_depletion.nf"
+include { DEPLETE_HOST_BAM ; DEPLETE_HOST_FASTQ } from "./subworkflows/host_depletion.nf"
 include { KRAKENUNIQ } from './modules/classify.nf'
 include { KREPORT_TO_KRONA } from "./modules/kreport_to_krona.nf"
 
@@ -63,13 +71,14 @@ def usage() {
     System.exit(0)
 }
 
+
 def validateParams() {
     def missing = []
 
     if (!params.ref) {
         missing << '--ref'
     }
-    if (!params.bam) {
+    if (!params.bam & params.mode == "bam") {
         missing << '--bam'
     }
     if (!params.decoys) {
@@ -78,12 +87,25 @@ def validateParams() {
     if (!params.sampleid) {
         missing << '--sampleid'
     }
+    if (!params.r1 & params.mode == "fastq") {
+        missing << '--r1'
+    }
+    if (!params.r2 & params.mode == "fastq") {
+        missing << '--r2'
+    }
 
     if (missing) {
         error("Missing required params: ${missing.join(', ')}\nTip: run with --help")
     }
 
+    def allowed_modes = ['bam', 'fastq'] as Set
+
+    if (!allowed_modes.contains(params.mode as String)) {
+        error("Invalid --mode '${params.mode}'. Valid values: ${allowed_modes.join(', ')}")
+    }
+
     def allowed_presets = ['very-fast', 'fast', 'sensitive', 'very-sensitive'] as Set
+
     if (!allowed_presets.contains(params.bowtie2_preset as String)) {
         error("Invalid --bowtie2_preset '${params.bowtie2_preset}'. Valid values: ${allowed_presets.join(', ')}")
     }
@@ -91,20 +113,47 @@ def validateParams() {
     if (!(params.sampleid ==~ /^[A-Za-z0-9._-]+$/)) {
         error("Invalid sampleid '${params.sampleid}'. Only letters, numbers, '.', '_', and '-' are allowed.")
     }
+
+    if (params.mode == "bam") {
+        if (params.r1) {
+            error("There is no reason to supply fastqs to --r1 when --mode = 'bam'. Drop --r1 parameter or change --mode to 'fastq'")
+        }
+        if (params.r2) {
+            error("There is no reason to supply fastqs to --r2 when --mode = 'bam'. Drop --r2 parameter or change --mode to 'fastq'")
+        }
+    }
 }
 
 def validateFiles() {
-    def bam = file(params.bam)
-    def bai = file("${bam}.bai")
+
+    def mode = params.mode
+
+    if (mode == "bam") {
+        def bam = file(params.bam)
+        def bai = file("${bam}.bai")
+        if (!bam.exists()) {
+            error("BAM file not found: ${bam}")
+        }
+        if (!bai.exists()) {
+            error("Missing BAM index: ${bai}")
+        }
+    }
+    if (mode == "fastq") {
+        def r1 = file(params.r1)
+        def r2 = file(params.r2)
+
+
+        if (!r1.exists()) {
+            error("FASTQ file not found: ${r1}")
+        }
+        if (!r2.exists()) {
+            error("FASTQ file not found: ${r2}")
+        }
+    }
+
     def decoys = file(params.decoys)
     def ref = file(params.ref)
 
-    if (!bam.exists()) {
-        error("BAM file not found: ${bam}")
-    }
-    if (!bai.exists()) {
-        error("Missing BAM index: ${bai}")
-    }
     if (!decoys.exists()) {
         error("Decoy list not found: ${decoys}")
     }
@@ -159,9 +208,7 @@ workflow {
     validateParams()
     validateFiles()
 
-    // Setup Paramaters
-    def bam = file(params.bam)
-    def bai = file("${bam}.bai")
+    // Setup Reference Genome Paramaters
     def decoys = file(params.decoys)
     def kraken_db = file(params.kraken_db)
     def ref = file(params.ref)
@@ -174,31 +221,57 @@ workflow {
         file("${ref}.rev.2.bt2"),
     ]
 
-    host_depletion_input_ch = channel.of(
-        tuple(
-            params.sampleid,
-            bam,
-            bai,
-            decoys,
-            ref,
-            bowtie_index,
-            params.bowtie2_preset,
+    // Setup refindex channel
+    ch_host_refgenome = channel.of(tuple(ref, bowtie_index, params.bowtie2_preset))
+    ch_decoys = channel.of(decoys)
+
+    // Run host depletion from BAM
+    ch_input_bam = channel.empty()
+    if (params.mode == "bam") {
+        def bam = file(params.bam)
+        def bai = file("${bam}.bai")
+
+        //TODO: Update DEPLETE_HOST_BAM to take ref and bowtie index as a separate channel to clean up subprocesses
+        ch_input_bam = channel.of(
+            tuple(
+                params.sampleid,
+                bam,
+                bai,
+                decoys,
+                ref,
+                bowtie_index,
+                params.bowtie2_preset,
+            )
         )
-    )
+        ch_host_depleted = DEPLETE_HOST_BAM(ch_input_bam)
+    }
 
+    // Run host depletion from FASTQ
+    ch_input_fastqs = channel.empty()
+    if (params.mode == "fastq") {
+        def r1 = file(params.r1)
+        def r2 = file(params.r2)
 
-    // Deplete Host Reads
-    host_depleted_ch = DEPLETE_HOST(host_depletion_input_ch)
+        ch_input_fastqs = channel.of(
+            tuple(
+                params.sampleid,
+                r1,
+                r2,
+            )
+        )
+
+        ch_host_depleted = DEPLETE_HOST_FASTQ(ch_input_fastqs, ch_host_refgenome, ch_decoys)
+    }
+
 
     // Always define kraken channels so publish: can see them even if classification is skipped
     krakenuniq_ch = channel.empty()
     krona_ch = channel.empty()
 
     if (!params.skip_classification) {
-
         // Run KrakenUniq to classify reads 
-        krakenuniq_ch = host_depleted_ch.reads.map { sid, r1, r2 ->
-            tuple(sid, kraken_db, r1, r2)
+        krakenuniq_ch = ch_host_depleted.reads.map { sid, read1, read2 ->
+            tuple(sid, kraken_db, read1, read2)
         }
             | KRAKENUNIQ
 
@@ -207,8 +280,8 @@ workflow {
     }
 
     publish:
-    host_depleted_reads = host_depleted_ch.reads
-    stats = host_depleted_ch.stats
+    host_depleted_reads = ch_host_depleted.reads
+    stats = ch_host_depleted.stats
     krakenuniq = krakenuniq_ch
     krona = krona_ch
 }
