@@ -40,7 +40,8 @@ params {
     skip_classification: Boolean = false
 }
 
-include { DEPLETE_HOST_BAM ; DEPLETE_HOST_FASTQ } from "./subworkflows/host_depletion.nf"
+include { DEPLETE_HOST_FASTQ } from "./subworkflows/host_depletion.nf"
+include { FETCH_UNMAPPED } from "./modules/deplete_host.nf"
 include { KRAKENUNIQ } from './modules/classify.nf'
 include { KREPORT_TO_KRONA } from "./modules/kreport_to_krona.nf"
 
@@ -225,30 +226,18 @@ workflow {
     ch_host_refgenome = channel.of(tuple(ref, bowtie_index, params.bowtie2_preset))
     ch_decoys = channel.of(decoys)
 
-    // Run host depletion from BAM
-    ch_input_bam = channel.empty()
+
+    ch_input_fastqs = channel.empty()
+
+    // To run host depletion from BAM we first need to extract unmapped reads into ch_input_fastqs
     if (params.mode == "bam") {
         def bam = file(params.bam)
         def bai = file("${bam}.bai")
 
-        //TODO: Update DEPLETE_HOST_BAM to take ref and bowtie index as a separate channel to clean up subprocesses
-        ch_input_bam = channel.of(
-            tuple(
-                params.sampleid,
-                bam,
-                bai,
-                decoys,
-                ref,
-                bowtie_index,
-                params.bowtie2_preset,
-            )
-        )
-        ch_host_depleted = DEPLETE_HOST_BAM(ch_input_bam)
+        ch_input_bam = channel.of(tuple(params.sampleid, bam, bai))
+        ch_input_fastqs = FETCH_UNMAPPED("unmapped", ch_input_bam, ch_decoys)
     }
-
-    // Run host depletion from FASTQ
-    ch_input_fastqs = channel.empty()
-    if (params.mode == "fastq") {
+    else if (params.mode == "fastq") {
         def r1 = file(params.r1)
         def r2 = file(params.r2)
 
@@ -259,10 +248,10 @@ workflow {
                 r2,
             )
         )
-
-        ch_host_depleted = DEPLETE_HOST_FASTQ(ch_input_fastqs, ch_host_refgenome, ch_decoys)
     }
 
+    // Deplete host from reads
+    ch_host_depleted = DEPLETE_HOST_FASTQ(ch_input_fastqs, ch_host_refgenome, ch_decoys)
 
     // Always define kraken channels so publish: can see them even if classification is skipped
     krakenuniq_ch = channel.empty()
@@ -289,7 +278,7 @@ workflow {
 // Outputs to save in final directory
 output {
     host_depleted_reads {
-        path "${params.outdir}/${params.sampleid}"
+        path "${params.outdir}/${params.sampleid}/reads"
         mode 'copy'
     }
     stats {
@@ -301,7 +290,7 @@ output {
         mode 'copy'
     }
     krona {
-        path "${params.outdir}/${params.sampleid}"
+        path "${params.outdir}/${params.sampleid}/krona"
         mode 'copy'
     }
 }

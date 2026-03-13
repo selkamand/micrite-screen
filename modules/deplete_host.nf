@@ -1,91 +1,35 @@
 nextflow.enable.dsl = 2
 
-process FETCH_UNMAPPED_PRE {
-    input:
-    tuple val(sampleid), path(bam), path(bai), path(decoys)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.unmapped.R1.fq.gz"), path("${sampleid}.unmapped.R2.fq.gz")
-
-    script:
-    """
-     fetch_unmapped_reads.sh \
-    --bam ${bam} \
-    --decoys ${decoys} \
-    --prefix "${sampleid}.unmapped" \
-    --threads ${task.cpus} \
-    --outdir .
-  """
-}
-
-process FETCH_UNMAPPED_POST {
-
-    tag "Unmap from ${bam}"
-
-    input:
-    tuple val(sampleid), path(bam), path(bai), path(decoys)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.hostdepleted.R1.fq.gz"), path("${sampleid}.hostdepleted.R2.fq.gz")
-
-    script:
-    """
-    fetch_unmapped_reads.sh \
-    --bam ${bam} \
-    --decoys ${decoys} \
-    --prefix ${sampleid}.hostdepleted \
-    --threads ${task.cpus} \
-    --outdir .
-  """
-}
-
-process ALIGN_BOWTIE2 {
-    input:
-    tuple val(sampleid), path(ref), path(r1), path(r2), path(bowtie_indexes), val(preset)
-
-    output:
-    tuple val(sampleid), path("${sampleid}.realigned.sorted.bam"), path("${sampleid}.realigned.sorted.bam.bai")
-
-    script:
-    """
-  align_bowtie2.sh \
-    -x ${ref} \
-    -1 ${r1} \
-    -2 ${r2} \
-    -o ${sampleid}.realigned \
-    -t ${task.cpus} \
-    --preset ${preset}
-  """
-}
-
 process FETCH_UNMAPPED {
 
     tag "Unmap from ${bam}"
 
     input:
+    val label
     tuple val(sampleid), path(bam), path(bai)
     path decoys
 
     output:
-    tuple val(sampleid), path("${sampleid}.hostdepleted.R1.fq.gz"), path("${sampleid}.hostdepleted.R2.fq.gz")
+    tuple val(sampleid), path("${sampleid}.${label}.R1.fq.gz"), path("${sampleid}.${label}.R2.fq.gz")
 
     script:
     """
     fetch_unmapped_reads.sh \
     --bam ${bam} \
     --decoys ${decoys} \
-    --prefix ${sampleid}.hostdepleted \
+    --prefix ${sampleid}.${label} \
     --threads ${task.cpus} \
     --outdir .
   """
 }
-process ALIGN_BOWTIE2_NEW {
+process ALIGN_BOWTIE2 {
     input:
+    val label
     tuple val(sampleid), path(r1), path(r2)
     tuple path(reference_fasta), path(bowtie_indexes), val(preset)
 
     output:
-    tuple val(sampleid), path("${sampleid}.realigned.sorted.bam"), path("${sampleid}.realigned.sorted.bam.bai")
+    tuple val(sampleid), path("${sampleid}.${label}.sorted.bam"), path("${sampleid}.${label}.sorted.bam.bai")
 
     script:
     """
@@ -93,7 +37,7 @@ process ALIGN_BOWTIE2_NEW {
     -x ${reference_fasta} \
     -1 ${r1} \
     -2 ${r2} \
-    -o ${sampleid}.realigned \
+    -o ${sampleid}.${label} \
     -t ${task.cpus} \
     --preset ${preset}
   """
