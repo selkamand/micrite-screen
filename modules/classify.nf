@@ -11,7 +11,7 @@ process KRAKENUNIQ {
     tuple val(sampleid), path("${sampleid}.krakenuniq.report.txt"), path("${sampleid}.kout.txt")
 
     script:
-    def preload_size = task.ext.args ?: '2G'
+    def preload_size = task.ext.preload_size ?: '2G'
     """
     set -euo pipefail
 
