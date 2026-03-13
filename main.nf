@@ -44,6 +44,7 @@ include { DEPLETE_HOST_FASTQ } from "./subworkflows/host_depletion.nf"
 include { FETCH_UNMAPPED } from "./modules/deplete_host.nf"
 include { KRAKENUNIQ } from './modules/classify.nf'
 include { KREPORT_TO_KRONA } from "./modules/kreport_to_krona.nf"
+include { BAMSTATS } from "./modules/stats.nf"
 
 def usage() {
     log.info(
@@ -234,7 +235,9 @@ workflow {
         def bam = file(params.bam)
         def bai = file("${bam}.bai")
 
+        // Add stats of bam. Rename st 
         ch_input_bam = channel.of(tuple(params.sampleid, bam, bai))
+        ch_original_bamstats = BAMSTATS("original", ch_input_bam)
         ch_input_fastqs = FETCH_UNMAPPED("unmapped", ch_input_bam, ch_decoys)
     }
     else if (params.mode == "fastq") {
@@ -269,19 +272,24 @@ workflow {
     }
 
     publish:
+    original_bamstats = ch_original_bamstats
     host_depleted_reads = ch_host_depleted.reads
-    stats = ch_host_depleted.stats
+    depletion_stats = ch_host_depleted.stats
     krakenuniq = krakenuniq_ch
     krona = krona_ch
 }
 
 // Outputs to save in final directory
 output {
+    original_bamstats {
+        path "${params.outdir}/${params.sampleid}/stats"
+        mode 'copy'
+    }
     host_depleted_reads {
         path "${params.outdir}/${params.sampleid}/reads"
         mode 'copy'
     }
-    stats {
+    depletion_stats {
         path "${params.outdir}/${params.sampleid}/stats"
         mode 'copy'
     }
