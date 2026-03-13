@@ -229,7 +229,7 @@ workflow {
 
 
     ch_input_fastqs = channel.empty()
-
+    ch_unmapped_fastqs = channel.empty()
     // To run host depletion from BAM we first need to extract unmapped reads into ch_input_fastqs
     if (params.mode == "bam") {
         def bam = file(params.bam)
@@ -239,6 +239,7 @@ workflow {
         ch_input_bam = channel.of(tuple(params.sampleid, bam, bai))
         ch_original_bamstats = BAMSTATS("original", ch_input_bam)
         ch_input_fastqs = FETCH_UNMAPPED("unmapped", ch_input_bam, ch_decoys)
+        ch_unmapped_fastqs = ch_input_fastqs
     }
     else if (params.mode == "fastq") {
         def r1 = file(params.r1)
@@ -273,6 +274,7 @@ workflow {
 
     publish:
     original_bamstats = ch_original_bamstats
+    unmapped_reads = ch_unmapped_fastqs
     host_depleted_reads = ch_host_depleted.reads
     depletion_stats = ch_host_depleted.stats
     krakenuniq = krakenuniq_ch
@@ -283,6 +285,10 @@ workflow {
 output {
     original_bamstats {
         path "${params.outdir}/${params.sampleid}/stats"
+        mode 'copy'
+    }
+    unmapped_reads {
+        path "${params.outdir}/${params.sampleid}/reads"
         mode 'copy'
     }
     host_depleted_reads {
