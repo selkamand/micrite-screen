@@ -1,0 +1,10 @@
+# Sample Metadata
+mode: "fastq"
+r1: "testfiles/data/unmapped_fastqs/test_fastq.R1.fq.gz"
+r2: "testfiles/data/unmapped_fastqs/test_fastq.R2.fq.gz"
+sampleid: "testsample"
+
+# Refs
+ref: "testfiles/data/ref/ref.fa"
+kraken_db: "testfiles/data/dbs/minuku"
+decoys: "testfiles/data/decoys.txt"
