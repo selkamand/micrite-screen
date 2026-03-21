@@ -230,6 +230,8 @@ workflow {
 
     ch_input_fastqs = channel.empty()
     ch_unmapped_fastqs = channel.empty()
+    ch_original_bamstats = channel.empty()
+
     // To run host depletion from BAM we first need to extract unmapped reads into ch_input_fastqs
     if (params.mode == "bam") {
         def bam = file(params.bam)
@@ -252,6 +254,9 @@ workflow {
                 r2,
             )
         )
+    }
+    else {
+        error("micrite-screen does not currently support param.mode = [${params.mode}]")
     }
 
     // Deplete host from reads
