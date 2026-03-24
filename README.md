@@ -123,9 +123,18 @@ nextflow run . -profile singularity \
 
 We also supply a test profile to allow testing with:
 
+If testing on machine with docker, run:
+
 ```
-nextflow run . -profile test
+nextflow run . -profile docker,test
 ```
+
+Or to test pipeline starting from fastqs
+```
+nextflow run . -profile docker,test_fastq
+```
+
+Change `docker` to `singularity` or `apptainer` depending on which container manager you have available
 
 Or using nf-test
 
