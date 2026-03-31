@@ -227,7 +227,9 @@ workflow {
     ch_host_refgenome = channel.of(tuple(ref, bowtie_index, params.bowtie2_preset))
     ch_decoys = channel.of(decoys)
 
-
+    // Setup Channels for Input FastQs 
+    // Input fastqs are what will be host depleted. If user supplies params.bam  the unmapped reads will be extracted and saved to ch_input_fastq
+    // If params.r1 and params.r2 are supplied ch_input_fastqs will be just the raw fastqs + sampleid
     ch_input_fastqs = channel.empty()
     ch_unmapped_fastqs = channel.empty()
     ch_original_bamstats = channel.empty()
